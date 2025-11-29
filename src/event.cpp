@@ -1,6 +1,7 @@
-#include <stdio.h>
-
 #include "event.hpp"
+
+
+namespace frac {
 
 
 using enum EventKind;
@@ -159,3 +160,6 @@ const char *to_string(MouseButton button)
 	}
 	return "ERROR: Uninitialized mouse button";
 }
+
+
+} // namespace frac

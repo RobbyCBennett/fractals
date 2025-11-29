@@ -2,9 +2,13 @@
 
 #version 460 core
 
-layout (location = 0) in vec2 in_pos;
+layout (location = 0) uniform float u_aspect_ratio;
+layout (location = 1) uniform vec2 u_offset;
+layout (location = 2) uniform float u_zoom;
 
-layout (location = 0) out vec4 out_color;
+layout (location = 0) in vec2 i_pos;
+
+layout (location = 0) out vec4 o_color;
 
 const int MAX_ITERATIONS = 100;
 
@@ -27,11 +31,9 @@ float unit_to_range(vec2 range, float pos)
 void main()
 {
 	// Position and zoom
-	const vec2 offset = {-0.9, 0.26};
-	const float zoom = 0.02;
-	vec2 pos_unit = pos_to_unit(in_pos);
-	float x0 = unit_to_range(MANDELBROT_RANGE_X * zoom + offset.x, pos_unit.x);
-	float y0 = unit_to_range(MANDELBROT_RANGE_Y * zoom + offset.y, pos_unit.y);
+	vec2 pos_unit = pos_to_unit(vec2(i_pos.x * u_aspect_ratio, i_pos.y));
+	float x0 = unit_to_range(MANDELBROT_RANGE_X * u_zoom + u_offset.x, pos_unit.x);
+	float y0 = unit_to_range(MANDELBROT_RANGE_Y * u_zoom + u_offset.y, pos_unit.y);
 
 	// Iterations to escape fractal
 	float x = 0.0;
@@ -54,5 +56,5 @@ void main()
 	float r = escaped * gradient;
 	float b = escaped * (1 - gradient);
 
-	out_color = vec4(r, 0, b, 0);
+	o_color = vec4(r, 0, b, 0);
 }

@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 
+namespace frac {
+
+
 // The code of a key, button, or something similar
 //
 // https://raw.githubusercontent.com/torvalds/linux/master/include/uapi/linux/input-event-codes.h
@@ -1121,5 +1124,7 @@ enum Keys: Key
 };
 
 
-// TODO common keys only, then add OtherKey and OtherMouseButton if needed
-// TODO to_string for keys
+const char *to_string(Key key);
+
+
+} // namespace frac

@@ -2,6 +2,7 @@
 
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <GL/glx.h>
 #include <X11/Xatom.h>
@@ -16,54 +17,111 @@ constexpr int32_t X_EVENT_FOCUS_OUT = FocusOut;
 #include "window.hpp"
 
 
+namespace frac {
+
+
 constexpr int32_t X_MOUSE_BUTTON_BACK = 8;
 constexpr int32_t X_MOUSE_BUTTON_FORWARD = 9;
 
 
+// TODO remove globals
 static Display *global_display;
-static int32_t global_width, global_height;
-static int32_t global_screen;
-static XImage *global_image;
 
 
 static Event event_from_button_down(uint32_t button);
 static Event event_from_button_up(uint32_t button);
 
 
-Context::Context(DeviceId device_)
+Context::Context(uint64_t drawable_)
 {
-	device = device_;
-	// TODO
-	(void) context;
-	// context = glXCreateContext(device_);
+	static int visual_attribs[] = {
+		GLX_X_RENDERABLE    , True,
+		GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
+		GLX_RENDER_TYPE     , GLX_RGBA_BIT,
+		GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
+		GLX_RED_SIZE        , 8,
+		GLX_GREEN_SIZE      , 8,
+		GLX_BLUE_SIZE       , 8,
+		GLX_ALPHA_SIZE      , 8,
+		GLX_DEPTH_SIZE      , 24,
+		GLX_STENCIL_SIZE    , 8,
+		GLX_DOUBLEBUFFER    , True,
+		//GLX_SAMPLE_BUFFERS  , 1,
+		//GLX_SAMPLES         , 4,
+		0
+    };
+	int frame_buffer_config_count;
+	GLXFBConfig *frame_buffer_configs = glXChooseFBConfig(global_display, DefaultScreen(global_display), visual_attribs, &frame_buffer_config_count);
+	if (!frame_buffer_configs) {
+		context = nullptr;
+		drawable = 0;
+		return;
+	}
+	int best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
+	for (int i = 0; i < frame_buffer_config_count; i++) {
+		XVisualInfo *vi = glXGetVisualFromFBConfig(global_display, frame_buffer_configs[i]);
+		if (vi) {
+			int samp_buf, samples;
+			glXGetFBConfigAttrib(global_display, frame_buffer_configs[i], GLX_SAMPLE_BUFFERS, &samp_buf);
+			glXGetFBConfigAttrib(global_display, frame_buffer_configs[i], GLX_SAMPLES, &samples);
+			if (best_fbc < 0 or (samp_buf and samples > best_num_samp)) {
+				best_fbc = i;
+				best_num_samp = samples;
+			}
+			if (worst_fbc < 0 or (!samp_buf and samples < worst_num_samp)) {
+				worst_fbc = i;
+				worst_num_samp = samples;
+			}
+		}
+		XFree(vi);
+	}
+	GLXFBConfig best_frame_buffer_config = frame_buffer_configs[ best_fbc ];
+	XFree(frame_buffer_configs);
+	XVisualInfo *visual_info = glXGetVisualFromFBConfig(global_display, best_frame_buffer_config);
+
+	context = glXCreateContext(global_display, visual_info, nullptr, true);
+	drawable = drawable_;
+}
+
+
+Context::Context(Context &&other)
+{
+	context = other.context;
+	drawable = other.drawable;
+	other.context = nullptr;
+	other.drawable = 0;
+}
+
+
+Context Context::operator=(Context &&other)
+{
+	return (Context &&) other;
 }
 
 
 Context::~Context()
 {
 	end();
-	// TODO
-	// glXDestroyContext(display, context);
+	// TODO fix crash after calling Window::event
+	glXDestroyContext(global_display, context);
 }
 
 
 void Context::begin()
 {
-	// TODO
-	// glXMakeCurrent(display, drawable, context);
+	glXMakeCurrent(global_display, drawable, context);
 }
 
 
 void Context::end()
 {
-	// TODO
-	// glXMakeCurrent(nullptr, nullptr, nullptr);
+	glXMakeCurrent(nullptr, 0, nullptr);
 }
 
 
 void Context::swapBuffers()
 {
-	// TODO
+	glXSwapBuffers(global_display, drawable);
 }
 
 
@@ -76,42 +134,30 @@ Window::Window(const char *name)
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XOpenDisplay
 	global_display = XOpenDisplay(nullptr);
 	if (global_display == nullptr) {
-		id = 0;
+		window = 0;
 		closed = true;
 		return;
 	}
 
-	global_screen = XDefaultScreen(global_display);
+	int32_t screen = XDefaultScreen(global_display);
 
-	global_width = XDisplayWidth(global_display, global_screen);
-	global_height = XDisplayHeight(global_display, global_screen);
-
-	x = 1920;
-	global_width = 1920;
-	global_height = 1920;
+	int32_t width = XDisplayWidth(global_display, screen);
+	int32_t height = XDisplayHeight(global_display, screen);
 
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XCreateSimpleWindow
-	id = XCreateSimpleWindow(
+	window = XCreateSimpleWindow(
 		global_display,
-		XRootWindow(global_display, global_screen),
+		XRootWindow(global_display, screen),
 		x,
 		y,
-		(uint32_t) global_width,
-		(uint32_t) global_height,
+		(uint32_t) width,
+		(uint32_t) height,
 		1,
-		XBlackPixel(global_display, global_screen),
-		XBlackPixel(global_display, global_screen)
+		XBlackPixel(global_display, screen),
+		XBlackPixel(global_display, screen)
 	);
 
 	closed = false;
-
-	// Set the position hint
-	XSizeHints* size_hints = XAllocSizeHints();
-	size_hints->flags = USPosition;
-	size_hints->x = x;
-	size_hints->y = y;
-	XSetWMNormalHints(global_display, id, size_hints);
-	XFree(size_hints);
 
 	// Make the window frameless
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XInternAtom
@@ -124,33 +170,33 @@ Window::Window(const char *name)
 		long input_mode;
 		unsigned long status;
 	} hints = {2, 0, 0, 0, 0};
-	XChangeProperty(global_display, id, wm_hints, wm_hints, 32, PropModeReplace, (unsigned char *) &hints, 5);
+	XChangeProperty(global_display, window, wm_hints, wm_hints, 32, PropModeReplace, (unsigned char *) &hints, 5);
 
-	// // Make the window fullscreen
-	// Atom wm_state = XInternAtom(global_display, "_NET_WM_STATE", true);
-	// Atom wm_fullscreen = XInternAtom(global_display, "_NET_WM_STATE_FULLSCREEN", true);
-	// XChangeProperty(global_display, id, wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *) &wm_fullscreen, 1);
+	// Make the window fullscreen
+	Atom wm_state = XInternAtom(global_display, "_NET_WM_STATE", true);
+	Atom wm_fullscreen = XInternAtom(global_display, "_NET_WM_STATE_FULLSCREEN", true);
+	XChangeProperty(global_display, window, wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *) &wm_fullscreen, 1);
 
 	// Set window name
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XStoreName
-	XStoreName(global_display, id, name);
+	XStoreName(global_display, window, name);
 
 	// Process window close event through event handler so XNextEvent does not fail
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XInternAtom
 	Atom del_window = XInternAtom(global_display, "WM_DELETE_WINDOW", 0);
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XSetWMProtocols
-	XSetWMProtocols(global_display, id, &del_window, 1);
+	XSetWMProtocols(global_display, window, &del_window, 1);
 
 	// Select the kind of events we are interested in
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XSelectInput
 	constexpr int64_t EVENT_KINDS =
 		ExposureMask | ButtonPressMask | ButtonReleaseMask | FocusChangeMask |
 		KeyPressMask | KeyReleaseMask | PointerMotionMask | StructureNotifyMask;
-	XSelectInput(global_display, id, EVENT_KINDS);
+	XSelectInput(global_display, window, EVENT_KINDS);
 
 	// Display the window
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XMapWindow
-	XMapWindow(global_display, id);
+	XMapWindow(global_display, window);
 
 	// Wait for MapNotify
 	while (true) {
@@ -160,16 +206,27 @@ Window::Window(const char *name)
 		if (e.type == MapNotify)
 			break;
 	}
+}
 
-	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XGetImage
-	global_image = XGetImage(global_display, id, 0, 0, (uint32_t) global_width, (uint32_t) global_height, AllPlanes, ZPixmap);
+
+Window::Window(Window &&other)
+{
+	window = other.window;
+	closed = other.closed;
+	other.window = 0;
+	other.closed = true;
+}
+
+
+Window Window::operator=(Window &&other)
+{
+	return (Window &&) other;
 }
 
 
 Context Window::context()
 {
-	// TODO
-	return Context(0);
+	return Context(window);
 }
 
 
@@ -178,7 +235,7 @@ void Window::close()
 	closed = true;
 	// Destroy window
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XDestroyWindow
-	XDestroyWindow(global_display, id);
+	XDestroyWindow(global_display, window);
 	// Close connection to server
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XCloseDisplay
 	XCloseDisplay(global_display);
@@ -196,7 +253,7 @@ Event Window::event()
 
 	static bool repeating = false;
 
-	if (event.xany.window != id)
+	if (event.xany.window != window)
 		return Event();
 
 	switch (event.type) {
@@ -204,11 +261,6 @@ Event Window::event()
 
 		case ClientMessage:
 			close();
-			return Event();
-
-		case Expose:
-			// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XPutImage
-			// XPutImage(global_display, id, DefaultGC(global_display, global_screen), global_image, 0, 0, 0, 0, (unsigned) global_width, (unsigned) global_height);
 			return Event();
 
 		// Relayed events
@@ -263,23 +315,26 @@ bool Window::is_closed() const
 
 bool Window::is_created() const
 {
-	return id;
+	return window;
 }
 
 
-void Window::size(uint32_t &width, uint32_t &height) const
+WindowSize Window::size() const
 {
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XGetGeometry
-	int32_t i32;
-	uint32_t u32;
 	uint64_t u64;
-	XGetGeometry(global_display, id, &u64, &i32, &i32, &width, &height, &u32, &u32);
+	int32_t i32;
+	uint32_t width;
+	uint32_t height;
+	uint32_t u32;
+	XGetGeometry(global_display, window, &u64, &i32, &i32, &width, &height, &u32, &u32);
+	return WindowSize {width, height};
 }
 
 
-Function get_function(const char *name)
+void *get_function(const char *name)
 {
-	return glXGetProcAddressARB((const unsigned char *) name);
+	return (void *) glXGetProcAddressARB((const unsigned char *) name);
 }
 
 
@@ -329,6 +384,9 @@ static Event event_from_button_up(uint32_t button)
 			return Event();
 	}
 }
+
+
+} // namespace frac
 
 
 #endif // __linux

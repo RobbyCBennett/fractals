@@ -1,13 +1,13 @@
 #ifdef _WIN32
 
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 #include "window.hpp"
+
+
+namespace frac {
 
 
 enum class MissedFocus: uint8_t
@@ -21,6 +21,7 @@ enum class MissedFocus: uint8_t
 static constexpr const char WINDOW_CLASS[] = "_";
 
 
+// TODO remove globals
 static bool global_missed_close = false;
 static MissedFocus global_missed_focus = MissedFocus::None;
 
@@ -29,7 +30,7 @@ static Event event_from(const MSG &message);
 static Event event_from_scroll(const MSG &message);
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-wndproc
-static int64_t __stdcall handle_message(WindowId window_id, uint32_t message, uint64_t param_a, int64_t param_b);
+static int64_t __stdcall handle_message(HWND__ *window, uint32_t message, uint64_t param_a, int64_t param_b);
 
 static void initialize_gui();
 
@@ -40,7 +41,7 @@ static uint16_t mouse_button_from(const MSG &message);
 static MousePosition mouse_move_from(const MSG &message);
 
 
-Context::Context(DeviceId device_)
+Context::Context(HDC__ *device_)
 {
 	device = device_;
 
@@ -72,6 +73,21 @@ Context::Context(DeviceId device_)
 	SetPixelFormat(device, format, &descriptor);
 
 	context = wglCreateContext(device);
+}
+
+
+Context::Context(Context &&other)
+{
+	context = other.context;
+	device = other.device;
+	other.context = nullptr;
+	other.device = nullptr;
+}
+
+
+Context Context::operator=(Context &&other)
+{
+	return Context((Context &&) other);
 }
 
 
@@ -108,26 +124,33 @@ Window::Window(const char *name)
 		initialize_gui();
 	}
 
-	// // httpsr://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
-	// // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa
-	// constexpr DWORD WINDOW_STYLE = WS_MAXIMIZE | WS_POPUP | WS_VISIBLE;
-	// id = CreateWindowExA(0, WINDOW_CLASS, name, WINDOW_STYLE, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
-
-	constexpr int32_t GITHUB_PROFILE_SIZE = 460;
-	constexpr int32_t SIZE = GITHUB_PROFILE_SIZE * 4;
-
-	// https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
+	// httpsr://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa
-	constexpr DWORD WINDOW_STYLE = WS_POPUP | WS_VISIBLE;
-	id = CreateWindowExA(0, WINDOW_CLASS, name, WINDOW_STYLE, 0, 0, SIZE, SIZE, nullptr, nullptr, nullptr, nullptr);
+	constexpr DWORD WINDOW_STYLE = WS_MAXIMIZE | WS_POPUP | WS_VISIBLE;
+	window = CreateWindowExA(0, WINDOW_CLASS, name, WINDOW_STYLE, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
 
-	closed = id == nullptr;
+	closed = window == nullptr;
+}
+
+
+Window::Window(Window &&other)
+{
+	window = other.window;
+	closed = other.closed;
+	other.window = nullptr;
+	other.closed = true;
+}
+
+
+Window Window::operator=(Window &&other)
+{
+	return (Window &&) other;
 }
 
 
 Context Window::context()
 {
-	return Context(GetDC(id));
+	return Context(GetDC(window));
 }
 
 
@@ -164,7 +187,7 @@ Event Window::event()
 	TranslateMessage(&message);
 	DispatchMessageA(&message);
 
-	if (message.hwnd != id)
+	if (message.hwnd != window)
 		return Event();
 
 	if (global_missed_close) {
@@ -184,25 +207,27 @@ bool Window::is_closed() const
 
 bool Window::is_created() const
 {
-	return id;
+	return window;
 }
 
 
-void Window::size(uint32_t &width, uint32_t &height) const
+WindowSize Window::size() const
 {
 	// https://learn.microsoft.com/en-us/windows/win32/api/windef/ns-windef-rect
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
 	RECT rect;
-	GetWindowRect(id, &rect);
-	width = (uint32_t) (rect.right - rect.left);
-	height = (uint32_t) (rect.bottom - rect.top);
+	GetWindowRect(window, &rect);
+	return WindowSize {
+		(uint32_t) (rect.right - rect.left),
+		(uint32_t) (rect.bottom - rect.top),
+	};
 }
 
 
-Function get_function(const char *name)
+void *get_function(const char *name)
 {
 	// https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-wglgetprocaddress
-	return (Function) (void *) wglGetProcAddress(name);
+	return (void *) wglGetProcAddress(name);
 }
 
 
@@ -294,7 +319,7 @@ static Event event_from_scroll(const MSG &message)
 }
 
 
-static int64_t __stdcall handle_message(WindowId window_id, uint32_t message, uint64_t param_a, int64_t param_b)
+static int64_t __stdcall handle_message(HWND__ *window_id, uint32_t message, uint64_t param_a, int64_t param_b)
 {
 	using enum EventKind;
 
@@ -531,6 +556,9 @@ static MousePosition mouse_move_from(const MSG &message)
 	int16_t y = (int16_t) ((uint32_t) (message.lParam) >> 16);
 	return MousePosition {x, y};
 }
+
+
+} // namespace frac
 
 
 #endif // _WIN32

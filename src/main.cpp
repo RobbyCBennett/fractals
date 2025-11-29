@@ -12,20 +12,6 @@
 #include "window.hpp"
 
 
-struct Vec2
-{
-	float x;
-	float y;
-};
-
-
-enum ExitCode
-{
-	Ok,
-	ErrorCreateWindow,
-};
-
-
 constexpr const uint8_t VERTEX_SHADER_SOURCE[] = {
 	#embed "../out/shaders/vert.vert.spv"
 };
@@ -34,18 +20,28 @@ constexpr const uint8_t FRAGMENT_SHADER_SOURCE[] = {
 	#embed "../out/shaders/frag.frag.spv"
 };
 
+// ~0 fast, ~1 slow
+constexpr float ZOOM_SPEED = 0.875;
+
+
+static float get_movement_speed(float zoom)
+{
+	return zoom * 0.1f;
+}
+
 
 int32_t main()
 {
+	using namespace frac;
+
 	Window window("Fractals");
 	if (not window.is_created()) {
 		fputs("Failed to create the window\n", stderr);
-		return ErrorCreateWindow;
+		return 1;
 	}
 
-	uint32_t width;
-	uint32_t height;
-	window.size(width, height);
+	WindowSize size = window.size();
+	float aspect_ratio = size.height ? ((float) size.width / (float) size.height) : 0;
 
 	Context context = window.context();
 	context.begin();
@@ -76,14 +72,15 @@ int32_t main()
 	GET_FUNCTION(glGetProgramiv, GLGETPROGRAMIV)
 	GET_FUNCTION(glGetShaderInfoLog, GLGETSHADERINFOLOG)
 	GET_FUNCTION(glGetShaderiv, GLGETSHADERIV)
+	GET_FUNCTION(glGetUniformLocation, GLGETUNIFORMLOCATION)
 	GET_FUNCTION(glLinkProgram, GLLINKPROGRAM)
 	GET_FUNCTION(glShaderBinary, GLSHADERBINARY)
 	GET_FUNCTION(glShaderSource, GLSHADERSOURCE)
 	GET_FUNCTION(glSpecializeShader, GLSPECIALIZESHADER)
 	GET_FUNCTION(glUseProgram, GLUSEPROGRAM)
+	GET_FUNCTION(glUniform1f, GLUNIFORM1F)
+	GET_FUNCTION(glUniform2f, GLUNIFORM2F)
 	GET_FUNCTION(glVertexAttribPointer, GLVERTEXATTRIBPOINTER)
-
-	#undef GET_FUNCTION
 
 	// Compile vertex shader from SPIR-V
 	uint32_t vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -160,50 +157,68 @@ int32_t main()
 	// VBOs) when it's not directly necessary.
 	glBindVertexArray(0);
 
+	float x = -0.9f;
+	float y = 0.26f;
+	float zoom = 0.02f;
+	float movement_speed = get_movement_speed(zoom);
+	// TODO use a game loop with 60 updates per second and lag compensation
+
+	glUseProgram(shader_program);
+	glBindVertexArray(vao);
+
 	while (not window.is_closed()) {
 		using enum EventKind;
-		// using enum Key;
 		Event event = window.event();
 		switch (event.kind) {
 			case None:
 				break;
 			case FocusIn:
 			case FocusOut:
-				// printf("%s\n", to_string(event.kind));
 				break;
 			case KeyDown:
 			case KeyRepeat:
-				// printf("%s: %d\n", to_string(event.kind), (int32_t) event.key);
-				if (event.key == KEY_ESC)
-					window.close();
+				switch (event.key) {
+					case KEY_ESC:
+						window.close();
+						break;
+					case KEY_W:
+						y += movement_speed;
+						break;
+					case KEY_A:
+						x -= movement_speed;
+						break;
+					case KEY_S:
+						y -= movement_speed;
+						break;
+					case KEY_D:
+						x += movement_speed;
+						break;
+				}
 				break;
 			case KeyUp:
-				// printf("%s: %d\n", to_string(event.kind), (int32_t) event.key);
 				break;
 			case MouseButtonDown:
-				// printf("%s: %s\n", to_string(event.kind), to_string(event.button));
 				break;
 			case MouseButtonUp:
-				// printf("%s: %s\n", to_string(event.kind), to_string(event.button));
 				break;
 			case MouseMove:
-				// printf("%s: %d %d\n", to_string(event.kind), event.move.x, event.move.y);
 				break;
 			case MouseScrollDown:
-				// printf("%s\n", to_string(event.kind));
+				zoom *= 1 / ZOOM_SPEED;
+				movement_speed = get_movement_speed(zoom);
 				break;
 			case MouseScrollUp:
-				// printf("%s\n", to_string(event.kind));
+				zoom *= ZOOM_SPEED;
+				movement_speed = get_movement_speed(zoom);
 				break;
 		}
 
-		// glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		// glClear(GL_COLOR_BUFFER_BIT);
-		glUseProgram(shader_program);
-		glBindVertexArray(vao);
+		glUniform1f(0, aspect_ratio);
+		glUniform2f(1, x, y);
+		glUniform1f(2, zoom);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		context.swapBuffers();
 	}
-	puts("Done");
+	fputs("Done\n", stdout);
 }

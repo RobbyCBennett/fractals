@@ -4,6 +4,9 @@
 #include "key.hpp"
 
 
+namespace frac {
+
+
 enum class EventKind: uint8_t
 {
 	None,
@@ -78,3 +81,6 @@ private:
 
 const char *to_string(EventKind kind);
 const char *to_string(MouseButton button);
+
+
+} // namespace frac

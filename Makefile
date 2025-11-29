@@ -13,12 +13,12 @@ SOURCE_TYPE := .cpp
 HEADER_TYPE := .hpp
 OBJECT_TYPE := .o
 
-SHADER_FLAGS := -O
+SHADER_FLAGS := --target-env=opengl -O
 
 STANDARD := -std=c++26
 OPTIMIZE := -O1
 
-IGNORED := -Wno-c23-extensions -Wno-cast-function-type-strict -Wno-covered-switch-default -Wno-disabled-macro-expansion -Wno-padded -Wno-reserved-identifier -Wno-switch-default -Wno-unsafe-buffer-usage
+IGNORED := -Wno-c23-extensions -Wno-covered-switch-default -Wno-disabled-macro-expansion -Wno-padded -Wno-reserved-identifier -Wno-switch-default -Wno-unsafe-buffer-usage
 IGNORED_C := -Wno-declaration-after-statement
 IGNORED_CPP := -Wno-c++98-compat-pedantic -Wno-old-style-cast
 
@@ -72,7 +72,7 @@ MKDIR_COMMAND := mkdir -p
 
 ifeq ($(OS), Windows_NT)
 	ECHO_NEW_LINE := set _= && echo.
-	CLEAN_COMMAND := rmdir /S /Q $(CLEAN_FOLDERS) 1>NUL 2>NUL || set _=
+	CLEAN_COMMAND := rmdir /S /Q "$(CLEAN_FOLDERS)" 2>NUL || set _=
 	MKDIR_COMMAND := mkdir
 endif
 
