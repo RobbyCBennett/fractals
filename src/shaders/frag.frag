@@ -31,9 +31,10 @@ double unit_to_range(dvec2 range, double pos)
 void main()
 {
 	// Position and zoom
-	dvec2 pos_unit = pos_to_unit(dvec2(i_pos.x * u_aspect_ratio, i_pos.y));
-	double x0 = unit_to_range(MANDELBROT_RANGE_X * u_zoom + u_offset.x, pos_unit.x);
-	double y0 = unit_to_range(MANDELBROT_RANGE_Y * u_zoom + u_offset.y, pos_unit.y);
+	dvec2 pos_unit = pos_to_unit(dvec2(i_pos.x, i_pos.y));
+	double x0 = u_zoom * i_pos.x + u_offset.x;
+	double y0 = u_zoom * i_pos.y + u_offset.y;
+	x0 *= u_aspect_ratio;
 
 	// Iterations to escape fractal
 	double x = 0.0;

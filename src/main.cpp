@@ -42,6 +42,8 @@ int32_t main()
 	}
 
 	WindowSize size = window.size();
+	double width_inverse = 1.0 / size.width;
+	double height_inverse = 1.0 / size.height;
 	double aspect_ratio = size.height ? ((double) size.width / (double) size.height) : 0;
 
 	Context context = window.context();
@@ -158,10 +160,12 @@ int32_t main()
 	// VBOs) when it's not directly necessary.
 	glBindVertexArray(0);
 
-	double x = -0.9;
-	double y = 0.26;
-	double zoom = 0.02;
+	double x = 0;
+	double y = 0;
+	double zoom = 2;
 	double movement_speed = get_movement_speed(zoom);
+	double mouse_x = 0;
+	double mouse_y = 0;
 	// TODO game loop in one thread and slow swap_buffers in another
 
 	glUseProgram(shader_program);
@@ -185,18 +189,22 @@ int32_t main()
 						window.close();
 						goto END;
 					case KEY_W:
+					case KEY_UP:
 						y += movement_speed;
 						glUniform2d(1, x, y);
 						break;
 					case KEY_A:
+					case KEY_LEFT:
 						x -= movement_speed;
 						glUniform2d(1, x, y);
 						break;
 					case KEY_S:
+					case KEY_DOWN:
 						y -= movement_speed;
 						glUniform2d(1, x, y);
 						break;
 					case KEY_D:
+					case KEY_RIGHT:
 						x += movement_speed;
 						glUniform2d(1, x, y);
 						break;
@@ -215,13 +223,24 @@ int32_t main()
 				movement_speed = get_movement_speed(zoom);
 				glUniform1d(2, zoom);
 				break;
+			case MouseButtonUp:
+				if (event.button != MouseButton::Left)
+					continue;
+				x += mouse_x;
+				y += mouse_y;
+				glUniform2d(1, x, y);
+				break;
+			case MouseMove:
+				mouse_x = (event.move.x * width_inverse * 2 - 1) * zoom;
+				mouse_y = ((size.height - (uint32_t) event.move.y) * height_inverse * 2 - 1) * zoom;
+				if (buffers_drawn >= BUFFER_COUNT)
+					continue;
+				break;
 			case None:
 			case FocusIn:
 			case FocusOut:
 			case KeyUp:
 			case MouseButtonDown:
-			case MouseButtonUp:
-			case MouseMove:
 				if (buffers_drawn >= BUFFER_COUNT)
 					continue;
 		}

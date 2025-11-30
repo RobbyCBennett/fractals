@@ -124,7 +124,7 @@ Window::Window(const char *name)
 		initialize_gui();
 	}
 
-	// httpsr://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
+	// https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa
 	constexpr DWORD WINDOW_STYLE = WS_MAXIMIZE | WS_POPUP | WS_VISIBLE;
 	window = CreateWindowExA(0, WINDOW_CLASS, name, WINDOW_STYLE, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
