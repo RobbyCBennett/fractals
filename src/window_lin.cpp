@@ -1,9 +1,6 @@
 #ifdef __linux
 
 
-#include <stdlib.h>
-#include <stdio.h>
-
 #include <GL/glx.h>
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -35,19 +32,17 @@ static Event event_from_button_up(uint32_t button);
 Context::Context(uint64_t drawable_)
 {
 	static int visual_attribs[] = {
-		GLX_X_RENDERABLE    , True,
-		GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
-		GLX_RENDER_TYPE     , GLX_RGBA_BIT,
-		GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
-		GLX_RED_SIZE        , 8,
-		GLX_GREEN_SIZE      , 8,
-		GLX_BLUE_SIZE       , 8,
-		GLX_ALPHA_SIZE      , 8,
-		GLX_DEPTH_SIZE      , 24,
-		GLX_STENCIL_SIZE    , 8,
-		GLX_DOUBLEBUFFER    , True,
-		//GLX_SAMPLE_BUFFERS  , 1,
-		//GLX_SAMPLES         , 4,
+		GLX_X_RENDERABLE,  True,
+		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+		GLX_RENDER_TYPE,   GLX_RGBA_BIT,
+		GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+		GLX_RED_SIZE,      8,
+		GLX_GREEN_SIZE,    8,
+		GLX_BLUE_SIZE,     8,
+		GLX_ALPHA_SIZE,    8,
+		GLX_DEPTH_SIZE,    24,
+		GLX_STENCIL_SIZE,  8,
+		GLX_DOUBLEBUFFER,  True,
 		0
     };
 	int frame_buffer_config_count;
@@ -119,7 +114,7 @@ void Context::end()
 }
 
 
-void Context::swapBuffers()
+void Context::swap_buffers()
 {
 	glXSwapBuffers(global_display, drawable);
 }
@@ -171,11 +166,6 @@ Window::Window(const char *name)
 		unsigned long status;
 	} hints = {2, 0, 0, 0, 0};
 	XChangeProperty(global_display, window, wm_hints, wm_hints, 32, PropModeReplace, (unsigned char *) &hints, 5);
-
-	// Make the window fullscreen
-	Atom wm_state = XInternAtom(global_display, "_NET_WM_STATE", true);
-	Atom wm_fullscreen = XInternAtom(global_display, "_NET_WM_STATE_FULLSCREEN", true);
-	XChangeProperty(global_display, window, wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *) &wm_fullscreen, 1);
 
 	// Set window name
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XStoreName

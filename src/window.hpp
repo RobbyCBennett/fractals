@@ -28,7 +28,7 @@ public:
 	void begin();
 	void end();
 
-	void swapBuffers();
+	void swap_buffers();
 
 private:
 #ifdef _WIN32

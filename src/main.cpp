@@ -9,6 +9,7 @@
 #endif
 #define GL_GLEXT_PROTOTYPES 1
 #include <glcorearb.h>
+
 #include "window.hpp"
 
 
@@ -161,64 +162,77 @@ int32_t main()
 	float y = 0.26f;
 	float zoom = 0.02f;
 	float movement_speed = get_movement_speed(zoom);
-	// TODO use a game loop with 60 updates per second and lag compensation
+	// TODO game loop in one thread and slow swap_buffers in another
 
 	glUseProgram(shader_program);
 	glBindVertexArray(vao);
+
+	glUniform1f(0, aspect_ratio);
+	glUniform2f(1, x, y);
+	glUniform1f(2, zoom);
+
+	constexpr uint8_t BUFFER_COUNT = 3;
+	uint8_t buffers_drawn = 0;
 
 	while (not window.is_closed()) {
 		using enum EventKind;
 		Event event = window.event();
 		switch (event.kind) {
-			case None:
-				break;
-			case FocusIn:
-			case FocusOut:
-				break;
 			case KeyDown:
 			case KeyRepeat:
 				switch (event.key) {
 					case KEY_ESC:
 						window.close();
-						break;
+						goto END;
 					case KEY_W:
 						y += movement_speed;
+						glUniform2f(1, x, y);
 						break;
 					case KEY_A:
 						x -= movement_speed;
+						glUniform2f(1, x, y);
 						break;
 					case KEY_S:
 						y -= movement_speed;
+						glUniform2f(1, x, y);
 						break;
 					case KEY_D:
 						x += movement_speed;
+						glUniform2f(1, x, y);
 						break;
+					default:
+						if (buffers_drawn >= BUFFER_COUNT)
+							continue;
 				}
-				break;
-			case KeyUp:
-				break;
-			case MouseButtonDown:
-				break;
-			case MouseButtonUp:
-				break;
-			case MouseMove:
 				break;
 			case MouseScrollDown:
 				zoom *= 1 / ZOOM_SPEED;
 				movement_speed = get_movement_speed(zoom);
+				glUniform1f(2, zoom);
 				break;
 			case MouseScrollUp:
 				zoom *= ZOOM_SPEED;
 				movement_speed = get_movement_speed(zoom);
+				glUniform1f(2, zoom);
 				break;
+			case None:
+			case FocusIn:
+			case FocusOut:
+			case KeyUp:
+			case MouseButtonDown:
+			case MouseButtonUp:
+			case MouseMove:
+				if (buffers_drawn >= BUFFER_COUNT)
+					continue;
 		}
 
-		glUniform1f(0, aspect_ratio);
-		glUniform2f(1, x, y);
-		glUniform1f(2, zoom);
+		if (buffers_drawn < BUFFER_COUNT)
+			buffers_drawn += 1;
+
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		context.swapBuffers();
+		context.swap_buffers();
 	}
+END:
 	fputs("Done\n", stdout);
 }

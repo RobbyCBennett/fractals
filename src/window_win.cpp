@@ -110,7 +110,7 @@ void Context::end()
 }
 
 
-void Context::swapBuffers()
+void Context::swap_buffers()
 {
 	SwapBuffers(device);
 }
