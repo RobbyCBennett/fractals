@@ -2,9 +2,9 @@
 
 #version 460 core
 
-layout (location = 0) uniform float u_aspect_ratio;
-layout (location = 1) uniform vec2 u_offset;
-layout (location = 2) uniform float u_zoom;
+layout (location = 0) uniform double u_aspect_ratio;
+layout (location = 1) uniform dvec2 u_offset;
+layout (location = 2) uniform double u_zoom;
 
 layout (location = 0) in vec2 i_pos;
 
@@ -12,18 +12,18 @@ layout (location = 0) out vec4 o_color;
 
 const int MAX_ITERATIONS = 100;
 
-const vec2 MANDELBROT_RANGE_X = vec2(-2.00, 0.47);
-const vec2 MANDELBROT_RANGE_Y = vec2(-1.12, 1.12);
+const dvec2 MANDELBROT_RANGE_X = dvec2(-2.00, 0.47);
+const dvec2 MANDELBROT_RANGE_Y = dvec2(-1.12, 1.12);
 
-vec2 pos_to_unit(vec2 pos)
+dvec2 pos_to_unit(dvec2 pos)
 {
-	return vec2(
+	return dvec2(
 		(pos.x + 1) / 2,
 		(pos.y + 1) / 2
 	);
 }
 
-float unit_to_range(vec2 range, float pos)
+double unit_to_range(dvec2 range, double pos)
 {
 	return mix(range.x, range.y, pos);
 }
@@ -31,15 +31,15 @@ float unit_to_range(vec2 range, float pos)
 void main()
 {
 	// Position and zoom
-	vec2 pos_unit = pos_to_unit(vec2(i_pos.x * u_aspect_ratio, i_pos.y));
-	float x0 = unit_to_range(MANDELBROT_RANGE_X * u_zoom + u_offset.x, pos_unit.x);
-	float y0 = unit_to_range(MANDELBROT_RANGE_Y * u_zoom + u_offset.y, pos_unit.y);
+	dvec2 pos_unit = pos_to_unit(dvec2(i_pos.x * u_aspect_ratio, i_pos.y));
+	double x0 = unit_to_range(MANDELBROT_RANGE_X * u_zoom + u_offset.x, pos_unit.x);
+	double y0 = unit_to_range(MANDELBROT_RANGE_Y * u_zoom + u_offset.y, pos_unit.y);
 
 	// Iterations to escape fractal
-	float x = 0.0;
-	float y = 0.0;
-	float x2 = 0.0;
-	float y2 = 0.0;
+	double x = 0.0;
+	double y = 0.0;
+	double x2 = 0.0;
+	double y2 = 0.0;
 	int i;
 	for (i = 0; i < MAX_ITERATIONS; i++) {
 		if (x2 + y2 > 4)
@@ -49,12 +49,12 @@ void main()
 		x2 = x * x;
 		y2 = y * y;
 	}
-	float escaped = 1.0 - i * (1.0 / MAX_ITERATIONS);
+	double escaped = 1.0 - i * (1.0 / MAX_ITERATIONS);
 
 	// Color
-	float gradient = (pos_unit.x + 1 - pos_unit.y) / 2;
-	float r = escaped * gradient;
-	float b = escaped * (1 - gradient);
+	double gradient = (pos_unit.x + 1 - pos_unit.y) / 2;
+	double r = escaped * gradient;
+	double b = escaped * (1 - gradient);
 
 	o_color = vec4(r, 0, b, 0);
 }

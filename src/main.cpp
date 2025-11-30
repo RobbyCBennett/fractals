@@ -22,12 +22,12 @@ constexpr const uint8_t FRAGMENT_SHADER_SOURCE[] = {
 };
 
 // ~0 fast, ~1 slow
-constexpr float ZOOM_SPEED = 0.875;
+constexpr double ZOOM_SPEED = 0.875;
 
 
-static float get_movement_speed(float zoom)
+static double get_movement_speed(double zoom)
 {
-	return zoom * 0.1f;
+	return zoom * 0.1;
 }
 
 
@@ -42,7 +42,7 @@ int32_t main()
 	}
 
 	WindowSize size = window.size();
-	float aspect_ratio = size.height ? ((float) size.width / (float) size.height) : 0;
+	double aspect_ratio = size.height ? ((double) size.width / (double) size.height) : 0;
 
 	Context context = window.context();
 	context.begin();
@@ -79,8 +79,8 @@ int32_t main()
 	GET_FUNCTION(glShaderSource, GLSHADERSOURCE)
 	GET_FUNCTION(glSpecializeShader, GLSPECIALIZESHADER)
 	GET_FUNCTION(glUseProgram, GLUSEPROGRAM)
-	GET_FUNCTION(glUniform1f, GLUNIFORM1F)
-	GET_FUNCTION(glUniform2f, GLUNIFORM2F)
+	GET_FUNCTION(glUniform1d, GLUNIFORM1D)
+	GET_FUNCTION(glUniform2d, GLUNIFORM2D)
 	GET_FUNCTION(glVertexAttribPointer, GLVERTEXATTRIBPOINTER)
 
 	// Compile vertex shader from SPIR-V
@@ -158,18 +158,18 @@ int32_t main()
 	// VBOs) when it's not directly necessary.
 	glBindVertexArray(0);
 
-	float x = -0.9f;
-	float y = 0.26f;
-	float zoom = 0.02f;
-	float movement_speed = get_movement_speed(zoom);
+	double x = -0.9;
+	double y = 0.26;
+	double zoom = 0.02;
+	double movement_speed = get_movement_speed(zoom);
 	// TODO game loop in one thread and slow swap_buffers in another
 
 	glUseProgram(shader_program);
 	glBindVertexArray(vao);
 
-	glUniform1f(0, aspect_ratio);
-	glUniform2f(1, x, y);
-	glUniform1f(2, zoom);
+	glUniform1d(0, aspect_ratio);
+	glUniform2d(1, x, y);
+	glUniform1d(2, zoom);
 
 	constexpr uint8_t BUFFER_COUNT = 3;
 	uint8_t buffers_drawn = 0;
@@ -186,19 +186,19 @@ int32_t main()
 						goto END;
 					case KEY_W:
 						y += movement_speed;
-						glUniform2f(1, x, y);
+						glUniform2d(1, x, y);
 						break;
 					case KEY_A:
 						x -= movement_speed;
-						glUniform2f(1, x, y);
+						glUniform2d(1, x, y);
 						break;
 					case KEY_S:
 						y -= movement_speed;
-						glUniform2f(1, x, y);
+						glUniform2d(1, x, y);
 						break;
 					case KEY_D:
 						x += movement_speed;
-						glUniform2f(1, x, y);
+						glUniform2d(1, x, y);
 						break;
 					default:
 						if (buffers_drawn >= BUFFER_COUNT)
@@ -208,12 +208,12 @@ int32_t main()
 			case MouseScrollDown:
 				zoom *= 1 / ZOOM_SPEED;
 				movement_speed = get_movement_speed(zoom);
-				glUniform1f(2, zoom);
+				glUniform1d(2, zoom);
 				break;
 			case MouseScrollUp:
 				zoom *= ZOOM_SPEED;
 				movement_speed = get_movement_speed(zoom);
-				glUniform1f(2, zoom);
+				glUniform1d(2, zoom);
 				break;
 			case None:
 			case FocusIn:
