@@ -22,7 +22,8 @@ constexpr int32_t X_MOUSE_BUTTON_FORWARD = 9;
 
 
 // TODO remove globals
-static Display *global_display;
+// TODO close display with XCloseDisplay
+static Display *global_display = nullptr;
 
 
 static Event event_from_button_down(uint32_t button);
@@ -97,7 +98,6 @@ Context Context::operator=(Context &&other)
 Context::~Context()
 {
 	end();
-	// TODO fix crash after calling Window::event
 	glXDestroyContext(global_display, context);
 }
 
@@ -127,7 +127,8 @@ Window::Window(const char *name)
 
 	// Open connection with the server
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XOpenDisplay
-	global_display = XOpenDisplay(nullptr);
+	if (global_display == nullptr)
+		global_display = XOpenDisplay(nullptr);
 	if (global_display == nullptr) {
 		window = 0;
 		closed = true;
@@ -226,9 +227,6 @@ void Window::close()
 	// Destroy window
 	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XDestroyWindow
 	XDestroyWindow(global_display, window);
-	// Close connection to server
-	// https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#XCloseDisplay
-	XCloseDisplay(global_display);
 }
 
 
